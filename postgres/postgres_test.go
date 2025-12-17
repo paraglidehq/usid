@@ -114,15 +114,18 @@ func TestNextNode(t *testing.T) {
 		t.Fatalf("migration failed: %v", err)
 	}
 
-	// Get nodes sequentially, should cycle 1-15
+	cfg := postgres.DefaultConfig()
+	maxNode := cfg.MaxNode() // 63 with default config
+
+	// Get nodes sequentially, should cycle 1-maxNode
 	seen := make(map[int64]bool)
-	for i := 0; i < 15; i++ {
+	for i := int64(0); i < maxNode; i++ {
 		node, err := postgres.NextNode(ctx, db)
 		if err != nil {
 			t.Fatalf("NextNode failed: %v", err)
 		}
-		if node < 1 || node > 15 {
-			t.Errorf("node %d out of range [1,15]", node)
+		if node < 1 || node > maxNode {
+			t.Errorf("node %d out of range [1,%d]", node, maxNode)
 		}
 		if seen[node] {
 			t.Errorf("duplicate node %d", node)
@@ -130,7 +133,7 @@ func TestNextNode(t *testing.T) {
 		seen[node] = true
 	}
 
-	// 16th call should wrap to 1
+	// Next call should wrap to 1
 	node, err := postgres.NextNode(ctx, db)
 	if err != nil {
 		t.Fatalf("NextNode failed: %v", err)
@@ -284,9 +287,11 @@ func TestSequenceIncrement(t *testing.T) {
 		seqs = append(seqs, seq)
 	}
 
-	// Sequences should be incrementing (with possible wraps at 256)
+	// Sequences should be incrementing (with possible wraps at maxSeq+1)
+	cfg := postgres.DefaultConfig()
+	seqWrap := int(cfg.MaxSeq()) + 1
 	for i := 1; i < len(seqs); i++ {
-		expected := (seqs[i-1] + 1) % 256
+		expected := (seqs[i-1] + 1) % seqWrap
 		if seqs[i] != expected && seqs[i] != 0 {
 			// Allow for time advancing (seq resets to 0)
 			t.Logf("seq[%d]=%d, seq[%d]=%d (time may have advanced)", i-1, seqs[i-1], i, seqs[i])

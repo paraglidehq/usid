@@ -19,8 +19,8 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		Epoch:    1765947799213000, // 2025-12-16 in µs
-		NodeBits: 4,
-		SeqBits:  8,
+		NodeBits: 6,
+		SeqBits:  6,
 	}
 }
 

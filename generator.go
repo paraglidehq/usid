@@ -3,9 +3,9 @@ package usid
 import "time"
 
 var (
-	Epoch         int64  = 1765947799213000 // 2025-16-12 in µs
-	NodeBits      uint8  = 4
-	SeqBits       uint8  = 8
+	Epoch         int64  = 1765947799213000 // 2025-12-16 in µs
+	NodeBits      uint8  = 6
+	SeqBits       uint8  = 6
 	DefaultFormat Format = FormatBase58
 )
 

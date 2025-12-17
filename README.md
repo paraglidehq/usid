@@ -18,12 +18,12 @@ Like Snowflake, usid uses a time-ordered layout for index-friendly inserts. Unli
 ## Layout
 
 ```
-[1 sign][51 bits µs timestamp][4 bits node][8 bits sequence]
+[1 sign][51 bits µs timestamp][6 bits node][6 bits sequence]
 ```
 
 - **51 bits**: Microseconds since epoch (~71 years)
-- **4 bits**: Node ID (0-15)
-- **8 bits**: Sequence counter (256 IDs/µs/node)
+- **6 bits**: Node ID (0-63)
+- **6 bits**: Sequence counter (64 IDs/µs/node)
 
 ## Installation
 
@@ -68,7 +68,7 @@ n := id.Int64()
 For multi-node deployments, set the node ID at startup:
 
 ```go
-usid.SetNodeID(2)  // 1-15 for app nodes (0 reserved for Postgres)
+usid.SetNodeID(2)  // 1-63 for app nodes (0 reserved for Postgres)
 ```
 
 Or manage generators manually:
@@ -139,7 +139,7 @@ if err := postgres.Migrate(ctx, db, postgres.DefaultConfig()); err != nil {
     log.Fatal(err)
 }
 
-// Get a node ID from the database sequence (1-15)
+// Get a node ID from the database sequence (1-63)
 node, err := postgres.NextNode(ctx, db)
 if err != nil {
     log.Fatal(err)
@@ -170,7 +170,7 @@ CREATE TABLE users (
 SELECT usid_to_b58(id) FROM users;        -- '3kTMd92jFk'
 SELECT b58_to_usid('3kTMd92jFk');          -- 12039113093376
 SELECT ts_from_usid(id) FROM users;       -- timestamp
-SELECT node_from_usid(id) FROM users;     -- 0-15
+SELECT node_from_usid(id) FROM users;     -- 0-63
 ```
 
 Scanning works automatically:
@@ -191,7 +191,7 @@ No special types, no extensions. Works with any database that supports 64-bit in
 
 ## Node ID Assignment
 
-Node 0 is reserved for Postgres. App instances use nodes 1-15 (default config).
+Node 0 is reserved for Postgres. App instances use nodes 1-63 (default config).
 
 ```go
 // Database sequence (recommended)
@@ -206,7 +206,7 @@ usid.SetNodeID(nodeID)
 hostname, _ := os.Hostname()  // "app-0"
 parts := strings.Split(hostname, "-")
 ordinal, _ := strconv.ParseInt(parts[len(parts)-1], 10, 64)
-usid.SetNodeID((ordinal % 15) + 1)
+usid.SetNodeID((ordinal % 63) + 1)
 ```
 
 ## Comparison
@@ -216,21 +216,21 @@ usid.SetNodeID((ordinal % 15) + 1)
 | Size | 8 bytes | 8 bytes | 16 bytes |
 | Display (base58) | 11 chars | 11 chars | 22 chars |
 | Time precision | µs | ms | ms |
-| Throughput/node | 256K/ms | 4K/ms | ∞ |
-| Max nodes | 16 (15 app + 1 Postgres) | 1,024 | ∞ |
+| Throughput/node | 64K/ms | 4K/ms | ∞ |
+| Max nodes | 64 (63 app + 1 Postgres) | 1,024 | ∞ |
 | Coordination | Node ID | Node ID | None |
 | Postgres type | `bigint` | `bigint` | `uuid` |
 
 ## Tuning
 
-Need more nodes? Adjust the bit allocation:
+Adjust the bit allocation for your needs:
 
 ```go
-// 64 nodes, 64K IDs/ms/node
-usid.NodeBits = 6
-usid.SeqBits = 6
+// More throughput, fewer nodes (16 nodes, 256K IDs/ms/node)
+usid.NodeBits = 4
+usid.SeqBits = 8
 
-// 256 nodes, 16K IDs/ms/node  
+// More nodes, less throughput (256 nodes, 16K IDs/ms/node)
 usid.NodeBits = 8
 usid.SeqBits = 4
 ```
