@@ -7,6 +7,12 @@ UUIDv7:  019234a5-f78b-7c3d-8a1e-3f9b2c8d4e6f  (36 chars, 16 bytes)
 usid:    3kTMd92jFk                            (11 chars, 8 bytes)
 ```
 
+## Installation
+
+```bash
+go get github.com/paraglidehq/usid
+```
+
 ## How it works
 
 ```
@@ -216,12 +222,6 @@ usid.SetObfuscator(0x3a1f9c7b2e4d8a05)
 ```
 
 All external representations (strings, JSON, URLs) get XOR'd with your key. Internal values stay raw—you can still extract timestamps and store as `bigint`.
-
-## Installation
-
-```bash
-go get github.com/paraglidehq/usid
-```
 
 ## Benchmarks
 
