@@ -126,27 +126,51 @@ CREATE TABLE users (
 );
 ```
 
-Or generate IDs in Postgres (uses node 0):
+### Postgres Functions
+
+The `postgres` subpackage provides idempotent migrations and helpers:
+
+```go
+import "github.com/paraglidehq/usid/postgres"
+
+// Run migrations (safe to call multiple times)
+// Stores config in _usid_config table and validates on subsequent runs
+if err := postgres.Migrate(ctx, db, postgres.DefaultConfig()); err != nil {
+    log.Fatal(err)
+}
+
+// Get a node ID from the database sequence (1-15)
+node, err := postgres.NextNode(ctx, db)
+if err != nil {
+    log.Fatal(err)
+}
+usid.SetNodeID(node)
+```
+
+If you've customized the bit layout, pass your config:
+
+```go
+postgres.Migrate(ctx, db, postgres.Config{
+    Epoch:    usid.Epoch,
+    NodeBits: usid.NodeBits,
+    SeqBits:  usid.SeqBits,
+})
+```
+
+This installs functions for generating IDs in Postgres (node 0) and assigning node IDs to app instances:
 
 ```sql
-CREATE SEQUENCE usid_seq;
-
-CREATE FUNCTION usid_generate() RETURNS bigint AS $$
-DECLARE
-    epoch bigint := 1765947799213000;
-    now_us bigint;
-    seq bigint;
-BEGIN
-    now_us := (extract(epoch from clock_timestamp()) * 1000000)::bigint - epoch;
-    seq := nextval('usid_seq') & 255;
-    RETURN (now_us << 12) | seq;  -- node 0
-END;
-$$ LANGUAGE plpgsql;
-
+-- Generate IDs in Postgres
 CREATE TABLE users (
-    id bigint PRIMARY KEY DEFAULT usid_generate(),
+    id bigint PRIMARY KEY DEFAULT usid(),
     email text NOT NULL
 );
+
+-- Encoding/decoding
+SELECT usid_to_b58(id) FROM users;        -- '3kTMd92jFk'
+SELECT b58_to_usid('3kTMd92jFk');          -- 12039113093376
+SELECT ts_from_usid(id) FROM users;       -- timestamp
+SELECT node_from_usid(id) FROM users;     -- 0-15
 ```
 
 Scanning works automatically:
@@ -170,6 +194,10 @@ No special types, no extensions. Works with any database that supports 64-bit in
 Node 0 is reserved for Postgres. App instances use nodes 1-15 (default config).
 
 ```go
+// Database sequence (recommended)
+node, _ := postgres.NextNode(ctx, db)
+usid.SetNodeID(node)
+
 // Environment variable
 nodeID, _ := strconv.ParseInt(os.Getenv("NODE_ID"), 10, 64)
 usid.SetNodeID(nodeID)
@@ -179,11 +207,6 @@ hostname, _ := os.Hostname()  // "app-0"
 parts := strings.Split(hostname, "-")
 ordinal, _ := strconv.ParseInt(parts[len(parts)-1], 10, 64)
 usid.SetNodeID((ordinal % 15) + 1)
-
-// Database sequence (once at startup)
-var nodeID int64
-db.QueryRow("SELECT (nextval('node_id_seq') % 15) + 1").Scan(&nodeID)
-usid.SetNodeID(nodeID)
 ```
 
 ## Comparison
