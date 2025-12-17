@@ -85,9 +85,13 @@ func (id ID) String() string {
 	return id.Format(DefaultFormat)
 }
 
-func (id ID) Format(f Format) string {
+func (id ID) Format(f ...Format) string {
+	format := DefaultFormat
+	if len(f) > 0 {
+		format = f[0]
+	}
 	id = obfuscate(id)
-	switch f {
+	switch format {
 	case FormatDecimal:
 		return strconv.FormatInt(int64(id), 10)
 	case FormatBase64:
