@@ -86,6 +86,7 @@ func (id ID) String() string {
 }
 
 func (id ID) Format(f Format) string {
+	id = obfuscate(id)
 	switch f {
 	case FormatDecimal:
 		return strconv.FormatInt(int64(id), 10)
@@ -147,7 +148,7 @@ func (id *ID) UnmarshalJSON(b []byte) error {
 		if err != nil {
 			return errors.New("usid: invalid JSON value")
 		}
-		*id = ID(n)
+		*id = deobfuscate(ID(n))
 		return nil
 	}
 	// Handle quoted string
@@ -207,7 +208,7 @@ func ParseBase58(s string) (ID, error) {
 	if err != nil {
 		return Nil, err
 	}
-	return ID(n), nil
+	return deobfuscate(ID(n)), nil
 }
 
 // ParseBase64 parses a base64-encoded string into an ID.
@@ -219,7 +220,11 @@ func ParseBase64(s string) (ID, error) {
 	if err != nil {
 		return Nil, fmt.Errorf("usid: invalid base64: %w", err)
 	}
-	return FromBytes(b)
+	id, err := FromBytes(b)
+	if err != nil {
+		return Nil, err
+	}
+	return deobfuscate(id), nil
 }
 
 // ParseHash parses a hex-encoded string into an ID.
@@ -234,7 +239,11 @@ func ParseHash(s string) (ID, error) {
 	if err != nil {
 		return Nil, err
 	}
-	return FromBytes(b)
+	id, err := FromBytes(b)
+	if err != nil {
+		return Nil, err
+	}
+	return deobfuscate(id), nil
 }
 
 // ParseDecimal parses a decimal string into an ID.
@@ -246,7 +255,7 @@ func ParseDecimal(s string) (ID, error) {
 	if err != nil {
 		return Nil, fmt.Errorf("usid: invalid decimal: %w", err)
 	}
-	return ID(n), nil
+	return deobfuscate(ID(n)), nil
 }
 
 // Parse parses a string into the ID receiver.
