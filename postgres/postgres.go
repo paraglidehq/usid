@@ -7,6 +7,14 @@ import (
 	"fmt"
 )
 
+// DB is the interface for database operations.
+// Satisfied by *sql.DB, *sql.Tx, *sql.Conn.
+// For pgx, use stdlib mode: stdlib.OpenDBFromPool(pool)
+type DB interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
 // Config holds the USID bit layout configuration.
 type Config struct {
 	Epoch    int64
@@ -33,9 +41,15 @@ func (c Config) SeqMask() int64   { return c.MaxSeq() }
 
 var ErrConfigMismatch = errors.New("usid: database config does not match application config")
 
-// Migrate runs the idempotent USID migration with the given configuration.
+// Migrate runs the idempotent USID migration.
+// If no config is provided, uses DefaultConfig().
 // If the database already has a different configuration, returns ErrConfigMismatch.
-func Migrate(ctx context.Context, db *sql.DB, cfg Config) error {
+func Migrate(ctx context.Context, db DB, cfgs ...Config) error {
+	cfg := DefaultConfig()
+	if len(cfgs) > 0 {
+		cfg = cfgs[0]
+	}
+
 	// Create config table
 	_, err := db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS _usid_config (
@@ -82,14 +96,14 @@ func Migrate(ctx context.Context, db *sql.DB, cfg Config) error {
 
 // NextNode returns the next available node ID from the database sequence.
 // Call once at app startup to get a unique node ID for this instance.
-func NextNode(ctx context.Context, db *sql.DB) (int64, error) {
+func NextNode(ctx context.Context, db DB) (int64, error) {
 	var node int64
 	err := db.QueryRowContext(ctx, "SELECT usid_next_node()").Scan(&node)
 	return node, err
 }
 
 // GetConfig reads the USID configuration from the database.
-func GetConfig(ctx context.Context, db *sql.DB) (Config, error) {
+func GetConfig(ctx context.Context, db DB) (Config, error) {
 	var cfg Config
 	var nodeBits, seqBits int
 	err := db.QueryRowContext(ctx, `SELECT epoch, node_bits, seq_bits FROM _usid_config`).Scan(&cfg.Epoch, &nodeBits, &seqBits)

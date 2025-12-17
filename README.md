@@ -16,7 +16,7 @@ go get github.com/paraglidehq/usid
 ## How it works
 
 ```
-[1 sign][51 bits µs timestamp][6 bits node][6 bits sequence]
+[51 bits µs timestamp][6 bits node][6 bits sequence]
 ```
 
 **Timestamp** (51 bits): Microseconds since epoch (~71 years). Time-ordered for index-friendly inserts.
@@ -101,7 +101,16 @@ Run migrations to install Postgres functions:
 ```go
 import "github.com/paraglidehq/usid/postgres"
 
-postgres.Migrate(ctx, db, postgres.DefaultConfig())
+postgres.Migrate(ctx, db)  // uses default config
+```
+
+Works with `*sql.DB`, `*sql.Tx`, or `*sql.Conn`. For pgx, use stdlib mode:
+
+```go
+import "github.com/jackc/pgx/v5/stdlib"
+
+db := stdlib.OpenDBFromPool(pool)
+postgres.Migrate(ctx, db)
 ```
 
 This gives you:
@@ -203,7 +212,7 @@ usid.SeqBits = 4   // still plenty of headroom
 // Then set node ID
 usid.SetNodeID(node)
 
-// And migrate with matching config
+// Migrate with matching config
 postgres.Migrate(ctx, db, postgres.Config{
     Epoch:    usid.Epoch,
     NodeBits: usid.NodeBits,
