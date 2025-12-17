@@ -2,10 +2,20 @@ package usid
 
 import "time"
 
+// Configuration variables for USID generation.
+// Modify these before generating any IDs if you need custom bit layouts.
 var (
-	Epoch         int64  = 1765947799213000 // 2025-12-16 in µs
-	NodeBits      uint8  = 6
-	SeqBits       uint8  = 6
+	// Epoch is the custom epoch in microseconds (default: 2025-12-16).
+	// IDs store time as microseconds since this epoch.
+	Epoch int64 = 1765947799213000
+
+	// NodeBits is the number of bits allocated for the node ID (default: 6, max 64 nodes).
+	NodeBits uint8 = 6
+
+	// SeqBits is the number of bits allocated for the sequence number (default: 6, max 64 per µs).
+	SeqBits uint8 = 6
+
+	// DefaultFormat is the default string encoding format for IDs.
 	DefaultFormat Format = FormatBase58
 )
 
@@ -27,6 +37,9 @@ func New() ID {
 	return DefaultGenerator.Generate()
 }
 
+// NewGenerator creates a Generator for the given node ID.
+// The node ID must be in the range [0, 2^NodeBits - 1].
+// Panics if node is out of range.
 func NewGenerator(node int64) *Generator {
 	nodeMax := int64((1 << NodeBits) - 1)
 	if node < 0 || node > nodeMax {
@@ -40,6 +53,8 @@ func NewGenerator(node int64) *Generator {
 	}
 }
 
+// Generate produces a new unique ID.
+// Safe for concurrent use.
 func (g *Generator) Generate() ID {
 	for {
 		now := time.Now().UnixMicro() - Epoch
