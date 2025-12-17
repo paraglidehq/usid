@@ -220,20 +220,32 @@ MIT
 
 ## Benchmarks
 
-### Go
+### Go (Apple M2)
 
+| Operation | ns/op | allocs |
+|-----------|------:|:------:|
+| New | 36.6 | **0** |
+| Parse (base58) | 7.7 | **0** |
+| Parse (decimal) | 7.3 | **0** |
+| Timestamp | 1.8 | **0** |
+| String | 25.7 | 1 |
+| Format (base58) | 27.2 | 1 |
+| Format (decimal) | 32.6 | 1 |
+| Format (hex) | 33.4 | 1 |
+
+### vs the [fastest Go UUIDv7 library](https://github.com/flexstack/uuid)
 | Operation | usid | UUIDv7 | Δ |
 |-----------|------|--------|---|
-| Generate | 63.6 ns/op | 195.2 ns/op | **3.1× faster** |
-| String (base58) | 31.8 ns/op | 398.7 ns/op | **12.5× faster** |
-| Parse (base58) | 79.5 ns/op | 102.3 ns/op | 1.3× faster |
+| Generate | 36.6 ns | 115.0 ns | **3.1× faster** |
+| String (base58) | 25.7 ns | 232.3 ns | **9.0× faster** |
+| Parse (base58) | 7.7 ns | 61.0 ns | **7.9× faster** |
 
 ### Postgres (10M rows)
 
-| | usid | uuid | Δ |
+| | USID | UUIDv7 | Δ |
 |---|------|------|---|
 | Insert | 26.2s | 49.3s | **1.9× faster** |
 | Table size | 498 MB | 574 MB | 13% smaller |
 | Index size | 214 MB | 402 MB | **47% smaller** |
 | Total size | 712 MB | 977 MB | **27% smaller** |
-| Range scan 1K | 0.30 ms | 0.93 ms | **3.1× faster** |
+| Range scan 1K | 0.125 ms | 0.194 ms | **1.55× faster** |
