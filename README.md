@@ -19,6 +19,12 @@ usid:    3kTMd92jFk                            (11 chars, 8 bytes)
 
 **Sequence** (6 bits): Handles multiple IDs within the same microsecond from one instance. You'll never hit this limit in practice.
 
+## Installation
+
+```bash
+go get github.com/paraglidehq/usid
+```
+
 ## Quick start
 
 ```go
@@ -31,6 +37,68 @@ func main() {
     fmt.Println(id)              // "3kTMd92jFk"
     fmt.Println(id.Timestamp())  // 2025-12-16 12:34:56.789
 }
+```
+
+
+## API
+
+```go
+// Generate
+id := usid.New()
+
+// Parse
+id, err := usid.Parse("3kTMd92jFk")
+id := usid.FromStringOrNil("3kTMd92jFk")
+
+// Format
+str := id.String()                    // uses DefaultFormat
+str := id.Format(usid.FormatBase58)   // "3kTMd92jFk"
+str := id.Format(usid.FormatDecimal)  // "10151254716672"
+str := id.Format(usid.FormatHash)     // "93b85ee7100"
+str := id.Format(usid.FormatBase64)   // "AAAJO4XucQA="
+
+// Extract components
+ts := id.Timestamp()  // time.Time
+node := id.Node()     // int64
+seq := id.Seq()       // int64
+
+// Raw value
+n := id.Int64()
+bytes := id.Bytes()
+```
+
+## JSON
+
+```go
+type User struct {
+    ID   usid.ID `json:"id"`
+    Name string  `json:"name"`
+}
+// {"id":"3kTMd92jFk","name":"alice"}
+
+type Record struct {
+    ID       usid.ID     `json:"id"`
+    ParentID usid.NullID `json:"parent_id"`
+}
+// {"id":"3kTMd92jFk","parent_id":null}
+```
+
+## Customizing bit allocation
+
+```go
+// Before any ID generation or migrations:
+usid.NodeBits = 8  // 255 instances
+usid.SeqBits = 4   // still plenty of headroom
+
+// Then set node ID
+usid.SetNodeID(node)
+
+// And migrate with matching config
+postgres.Migrate(ctx, db, postgres.Config{
+    Epoch:    usid.Epoch,
+    NodeBits: usid.NodeBits,
+    SeqBits:  usid.SeqBits,
+})
 ```
 
 ## Node ID assignment
@@ -144,72 +212,7 @@ Snowflake uses dedicated ID generation services that app servers call over RPC. 
 
 usid generates in-process: no network hop, no single point of failure, no batching complexity. The tradeoff is you need to assign node IDs at startup.
 
-## API
 
-```go
-// Generate
-id := usid.New()
-
-// Parse
-id, err := usid.Parse("3kTMd92jFk")
-id := usid.FromStringOrNil("3kTMd92jFk")
-
-// Format
-str := id.String()                    // uses DefaultFormat
-str := id.Format(usid.FormatBase58)   // "3kTMd92jFk"
-str := id.Format(usid.FormatDecimal)  // "10151254716672"
-str := id.Format(usid.FormatHash)     // "93b85ee7100"
-str := id.Format(usid.FormatBase64)   // "AAAJO4XucQA="
-
-// Extract components
-ts := id.Timestamp()  // time.Time
-node := id.Node()     // int64
-seq := id.Seq()       // int64
-
-// Raw value
-n := id.Int64()
-bytes := id.Bytes()
-```
-
-## JSON
-
-```go
-type User struct {
-    ID   usid.ID `json:"id"`
-    Name string  `json:"name"`
-}
-// {"id":"3kTMd92jFk","name":"alice"}
-
-type Record struct {
-    ID       usid.ID     `json:"id"`
-    ParentID usid.NullID `json:"parent_id"`
-}
-// {"id":"3kTMd92jFk","parent_id":null}
-```
-
-## Customizing bit allocation
-
-```go
-// Before any ID generation or migrations:
-usid.NodeBits = 8  // 255 instances
-usid.SeqBits = 4   // still plenty of headroom
-
-// Then set node ID
-usid.SetNodeID(node)
-
-// And migrate with matching config
-postgres.Migrate(ctx, db, postgres.Config{
-    Epoch:    usid.Epoch,
-    NodeBits: usid.NodeBits,
-    SeqBits:  usid.SeqBits,
-})
-```
-
-## Installation
-
-```bash
-go get github.com/paraglidehq/usid
-```
 
 ## Benchmarks
 
