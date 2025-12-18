@@ -3,8 +3,8 @@
 Time-ordered 64-bit IDs. Half the size of UUIDv7, fits in a `bigint`.
 
 ```
-UUIDv7:  019234a5-f78b-7c3d-8a1e-3f9b2c8d4e6f  (36 chars, 16 bytes)
-usid:    3kTMd92jFk                            (11 chars, 8 bytes)
+UUIDv7:  019234a5-f78b-7c3d-8a1e-3f9b2c8d4e6f  (36 chars,  16 bytes)
+usid:    2r6zq5dd9                             (<11 chars, 8 bytes)
 ```
 
 ## How it works
