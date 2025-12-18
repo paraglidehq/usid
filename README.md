@@ -7,16 +7,10 @@ UUIDv7:  019234a5-f78b-7c3d-8a1e-3f9b2c8d4e6f  (36 chars, 16 bytes)
 usid:    3kTMd92jFk                            (11 chars, 8 bytes)
 ```
 
-## Installation
-
-```bash
-go get github.com/paraglidehq/usid
-```
-
 ## How it works
 
 ```
-[51 bits µs timestamp][6 bits node][6 bits sequence]
+[1 sign][51 bits µs timestamp][6 bits node][6 bits sequence]
 ```
 
 **Timestamp** (51 bits): Microseconds since epoch (~71 years). Time-ordered for index-friendly inserts.
@@ -101,16 +95,7 @@ Run migrations to install Postgres functions:
 ```go
 import "github.com/paraglidehq/usid/postgres"
 
-postgres.Migrate(ctx, db)  // uses default config
-```
-
-Works with `*sql.DB`, `*sql.Tx`, or `*sql.Conn`. For pgx, use stdlib mode:
-
-```go
-import "github.com/jackc/pgx/v5/stdlib"
-
-db := stdlib.OpenDBFromPool(pool)
-postgres.Migrate(ctx, db)
+postgres.Migrate(ctx, db, postgres.DefaultConfig())
 ```
 
 This gives you:
@@ -120,36 +105,26 @@ This gives you:
 - `ts_from_usid(id)` — extract timestamp
 - `usid_next_node()` — get next node ID from sequence
 
-### Optional domain type
-
-For type safety in your schema, you can create a `usid` domain type:
-
-```go
-postgres.Migrate(ctx, db, postgres.Config{
-    Epoch:        usid.Epoch,
-    NodeBits:     usid.NodeBits,
-    SeqBits:      usid.SeqBits,
-    CreateDomain: true,
-})
-```
-
-Then use `usid` instead of `bigint`:
-
-```sql
-CREATE TABLE users (
-    id usid PRIMARY KEY DEFAULT usid(),
-    email text NOT NULL
-);
-```
-
-The domain is just an alias for `bigint`, so all USID functions work with it. Note that ORMs and code generators like sqlc may need configuration to map the custom type correctly.
-
 Scanning works automatically:
 
 ```go
 var user User
 db.QueryRow("SELECT id, name FROM users WHERE id = $1", id).Scan(&user.ID, &user.Name)
 ```
+
+## Why not nanoid?
+
+nanoid generates random IDs with no coordination required. The tradeoffs:
+
+| | usid | nanoid |
+|---|------|--------|
+| Storage | 8 bytes (bigint) | 21+ bytes (string) |
+| Index writes | Sequential (fast) | Random (fragmented) |
+| Comparisons | Integer | String |
+| Timestamp | Extractable | None |
+| Coordination | Node ID at startup | None |
+
+If you need time ordering or care about database performance at scale, use usid. If you just want short random strings and don't want to think about node IDs, nanoid is simpler.
 
 ## Why not UUIDv7?
 
@@ -168,20 +143,6 @@ If you only have a few thousand rows or coordination is painful, use UUIDv7.
 Snowflake uses dedicated ID generation services that app servers call over RPC. That's the right architecture at Twitter's scale, but overkill for most systems.
 
 usid generates in-process: no network hop, no single point of failure, no batching complexity. The tradeoff is you need to assign node IDs at startup.
-
-## Why not nanoid?
-
-nanoid generates random IDs with no coordination required. The tradeoffs:
-
-| | usid | nanoid |
-|---|------|--------|
-| Storage | 8 bytes (bigint) | 21+ bytes (string) |
-| Index writes | Sequential (fast) | Random (fragmented) |
-| Comparisons | Integer | String |
-| Timestamp | Extractable | None |
-| Coordination | Node ID at startup | None |
-
-If you need time ordering or care about database performance at scale, use usid. If you just want short random strings and don't want to think about node IDs, nanoid is simpler.
 
 ## API
 
@@ -236,7 +197,7 @@ usid.SeqBits = 4   // still plenty of headroom
 // Then set node ID
 usid.SetNodeID(node)
 
-// Migrate with matching config
+// And migrate with matching config
 postgres.Migrate(ctx, db, postgres.Config{
     Epoch:    usid.Epoch,
     NodeBits: usid.NodeBits,
@@ -244,17 +205,11 @@ postgres.Migrate(ctx, db, postgres.Config{
 })
 ```
 
-## Obfuscation
+## Installation
 
-Time-ordered IDs leak creation time. If that's a concern, obfuscate:
-
-```go
-// Generate once, store in env/config, keep secret
-// head -c 8 /dev/urandom | xxd -p → 0x3a1f9c7b2e4d8a05
-usid.SetObfuscator(0x3a1f9c7b2e4d8a05)
+```bash
+go get github.com/paraglidehq/usid
 ```
-
-All external representations (strings, JSON, URLs) get XOR'd with your key. Internal values stay raw—you can still extract timestamps and store as `bigint`.
 
 ## Benchmarks
 
@@ -264,13 +219,17 @@ All external representations (strings, JSON, URLs) get XOR'd with your key. Inte
 | Parse | 7.7 | 0 |
 | String | 25.7 | 1 |
 
-### Postgres (10M rows)
+### Postgres (10M rows, after 1M random updates)
 
-| | usid | UUIDv7 |
-|---|------|--------|
-| Table size | 498 MB | 574 MB |
-| Index size | 214 MB | 402 MB |
-| Range scan 1K | 0.125 ms | 0.194 ms |
+| | usid | UUID v4 |
+|---|------|---------|
+| Index size | 216 MB | 418 MB |
+| Leaf fill | 98.11% | 72.67% |
+| 1M updates | 28s | 56s |
+| Range scan 10K | 7.5 ms | 82.9 ms |
+| Range scan buffers | 106 | 8,545 |
+
+UUID v4 indexes fragment over time and require periodic `REINDEX` to recover ~90% fill. usid stays at ~98% without maintenance.
 
 ## License
 
