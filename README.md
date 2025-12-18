@@ -222,13 +222,13 @@ usid generates in-process: no network hop, no single point of failure, no batchi
 | Parse | 7.7 | 0 |
 | String | 25.7 | 1 |
 
-### Postgres (10M rows, after 1M random updates)
+### Postgres (10M rows, after 10M random updates)
 
 | | usid | UUID v4 |
 |---|------|---------|
 | Index size | 216 MB | 418 MB |
 | Leaf fill | 98.11% | 72.67% |
-| 1M updates | 28s | 56s |
+| 10M updates | 28s | 56s |
 | Range scan 10K | 7.5 ms | 82.9 ms |
 | Range scan buffers | 106 | 8,545 |
 
