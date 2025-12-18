@@ -1,3 +1,6 @@
+// Package postgres provides PostgreSQL integration for USID.
+// It includes migrations for USID functions and sequences, and utilities
+// for coordinating node IDs across application instances.
 package postgres
 
 import (
@@ -8,18 +11,24 @@ import (
 )
 
 // DB is the interface for database operations.
-// Satisfied by *sql.DB, *sql.Tx, *sql.Conn.
-// For pgx, use stdlib mode: stdlib.OpenDBFromPool(pool)
+// Satisfied by *sql.DB, *sql.Tx, and *sql.Conn.
+// For pgx, use stdlib mode: stdlib.OpenDBFromPool(pool).
 type DB interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
-// Config holds the USID bit layout configuration.
+// Config holds the USID bit layout configuration for PostgreSQL migrations.
+// This must match the configuration used in the Go application.
 type Config struct {
-	Epoch    int64
-	NodeBits uint8
-	SeqBits  uint8
+	Epoch    int64 // Custom epoch in microseconds
+	NodeBits uint8 // Bits allocated for node ID
+	SeqBits  uint8 // Bits allocated for sequence number
+
+	// CreateDomain creates a `usid` domain type as an alias for bigint.
+	// This provides type safety in your schema but may require configuration
+	// in ORMs and code generators like sqlc.
+	CreateDomain bool
 }
 
 // DefaultConfig returns the default USID configuration.
@@ -32,13 +41,23 @@ func DefaultConfig() Config {
 	}
 }
 
-// Computed values
+// TimeShift returns the number of bits to shift for the timestamp component.
 func (c Config) TimeShift() uint8 { return c.NodeBits + c.SeqBits }
-func (c Config) MaxNode() int64   { return (1 << c.NodeBits) - 1 }
-func (c Config) MaxSeq() int64    { return (1 << c.SeqBits) - 1 }
-func (c Config) NodeMask() int64  { return c.MaxNode() }
-func (c Config) SeqMask() int64   { return c.MaxSeq() }
 
+// MaxNode returns the maximum node ID value.
+func (c Config) MaxNode() int64 { return (1 << c.NodeBits) - 1 }
+
+// MaxSeq returns the maximum sequence number value.
+func (c Config) MaxSeq() int64 { return (1 << c.SeqBits) - 1 }
+
+// NodeMask returns the bitmask for extracting the node ID.
+func (c Config) NodeMask() int64 { return c.MaxNode() }
+
+// SeqMask returns the bitmask for extracting the sequence number.
+func (c Config) SeqMask() int64 { return c.MaxSeq() }
+
+// ErrConfigMismatch is returned when the database has a different USID configuration
+// than the application is trying to use.
 var ErrConfigMismatch = errors.New("usid: database config does not match application config")
 
 // Migrate runs the idempotent USID migration.
@@ -85,7 +104,7 @@ func Migrate(ctx context.Context, db DB, cfgs ...Config) error {
 	}
 
 	// Generate and run migrations with configured values
-	migrations := generateSQL(cfg)
+	migrations := GenerateSQL(cfg)
 	_, err = db.ExecContext(ctx, migrations)
 	if err != nil {
 		return fmt.Errorf("usid: run migrations: %w", err)
@@ -115,14 +134,28 @@ func GetConfig(ctx context.Context, db DB) (Config, error) {
 	return cfg, nil
 }
 
-func generateSQL(cfg Config) string {
+// GenerateSQL returns the SQL statements for creating USID functions and sequences.
+// This is called by Migrate but can be used directly if you need the raw SQL.
+func GenerateSQL(cfg Config) string {
 	timeShift := cfg.TimeShift()
 	maxNode := cfg.MaxNode()
 	maxSeq := cfg.MaxSeq()
 	nodeMask := cfg.NodeMask()
 	seqMask := cfg.SeqMask()
 
-	return fmt.Sprintf(`
+	var domainSQL string
+	if cfg.CreateDomain {
+		domainSQL = `
+-- Domain type
+DO $$ BEGIN
+  CREATE DOMAIN usid AS bigint;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+`
+	}
+
+	return domainSQL + fmt.Sprintf(`
 -- Sequences
 CREATE SEQUENCE IF NOT EXISTS usid_seq CYCLE MAXVALUE %d;
 CREATE SEQUENCE IF NOT EXISTS usid_node_seq CYCLE MINVALUE 1 MAXVALUE %d;
@@ -286,17 +319,17 @@ CREATE OR REPLACE FUNCTION usid_to_hex(id bigint)
   SELECT to_hex(id);
 $$;
 `,
-		maxSeq,       // usid_seq MAXVALUE
-		maxNode,      // usid_node_seq MAXVALUE
-		maxNode,      // comment: 1-maxNode
-		cfg.Epoch,    // epoch in usid()
-		seqMask,      // seq mask in usid()
-		timeShift,    // time shift in usid()
-		cfg.SeqBits,  // node shift in usid()
-		timeShift,    // time shift in ts_from_usid
-		cfg.Epoch,    // epoch in ts_from_usid
-		cfg.SeqBits,  // node shift in node_from_usid
-		nodeMask,     // node mask in node_from_usid
-		seqMask,      // seq mask in seq_from_usid
+		maxSeq,      // usid_seq MAXVALUE
+		maxNode,     // usid_node_seq MAXVALUE
+		maxNode,     // comment: 1-maxNode
+		cfg.Epoch,   // epoch in usid()
+		seqMask,     // seq mask in usid()
+		timeShift,   // time shift in usid()
+		cfg.SeqBits, // node shift in usid()
+		timeShift,   // time shift in ts_from_usid
+		cfg.Epoch,   // epoch in ts_from_usid
+		cfg.SeqBits, // node shift in node_from_usid
+		nodeMask,    // node mask in node_from_usid
+		seqMask,     // seq mask in seq_from_usid
 	)
 }

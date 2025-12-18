@@ -1,3 +1,5 @@
+// Package base58 provides Base58 encoding and decoding for int64 values.
+// It uses the Bitcoin alphabet which excludes 0, O, I, and l to avoid ambiguity.
 package base58
 
 import "errors"
@@ -26,8 +28,10 @@ var decode = [128]int64{
 	'x': 55, 'y': 56, 'z': 57,
 }
 
+// ErrInvalidBase58 is returned when decoding a string with invalid Base58 characters.
 var ErrInvalidBase58 = errors.New("usid: invalid base58 character")
 
+// Encode returns the Base58 encoding of the given int64.
 func Encode(id int64) string {
 	if id == 0 {
 		return "1"
@@ -42,6 +46,8 @@ func Encode(id int64) string {
 	return string(buf[i+1:])
 }
 
+// Decode parses a Base58-encoded string and returns the int64 value.
+// Returns ErrInvalidBase58 if the string contains invalid characters.
 func Decode(s string) (int64, error) {
 	var id int64
 	for i := 0; i < len(s); i++ {

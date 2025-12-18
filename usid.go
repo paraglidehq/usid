@@ -1,3 +1,16 @@
+// Package usid provides microsecond-precision, time-ordered unique identifiers.
+//
+// USIDs are 64-bit IDs with an embedded timestamp, node ID, and sequence number.
+// They sort chronologically, are URL-safe when encoded, and work well as database
+// primary keys.
+//
+// Basic usage:
+//
+//	usid.SetNodeID(1)  // Call once at startup
+//	id := usid.New()   // Generate IDs
+//	fmt.Println(id)    // Base58 encoded by default
+//
+// The bit layout is configurable via Epoch, NodeBits, and SeqBits variables.
 package usid
 
 import (
@@ -9,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -31,24 +45,32 @@ var (
 	_ gob.GobDecoder             = (*ID)(nil)
 )
 
+// Format specifies the string encoding format for IDs.
 type Format string
 
+// Supported ID string formats.
 const (
-	FormatBase58  Format = "base58"
-	FormatBase64  Format = "base64"
-	FormatHash    Format = "hash"
-	FormatDecimal Format = "decimal"
+	FormatBase58  Format = "base58"  // URL-safe, compact (default)
+	FormatBase64  Format = "base64"  // Standard base64 encoding
+	FormatHash    Format = "hash"    // Hexadecimal encoding
+	FormatDecimal Format = "decimal" // Decimal integer string
 )
 
-// ID is a 64-bit microsecond-precision time-ordered identifier
+// ID is a 64-bit microsecond-precision time-ordered identifier.
 type ID int64
 
+// Nil is the zero ID, representing an absent or invalid ID.
 var Nil ID = 0
 
+// Omni is the maximum ID value (math.MaxInt64), useful as an upper bound in queries.
+var Omni ID = math.MaxInt64
+
+// Int64 returns the ID as an int64.
 func (id ID) Int64() int64 {
 	return int64(id)
 }
 
+// IsNil returns true if the ID is Nil (zero).
 func (id ID) IsNil() bool {
 	return id == Nil
 }
@@ -81,10 +103,13 @@ func (id ID) Hash() [8]byte {
 	}
 }
 
+// String returns the ID as a string using DefaultFormat.
 func (id ID) String() string {
 	return id.Format(DefaultFormat)
 }
 
+// Format returns the ID as a string in the specified format.
+// If no format is provided, uses DefaultFormat.
 func (id ID) Format(f ...Format) string {
 	format := DefaultFormat
 	if len(f) > 0 {
@@ -103,17 +128,20 @@ func (id ID) Format(f ...Format) string {
 	}
 }
 
+// Timestamp extracts the creation time from the ID.
 func (id ID) Timestamp() time.Time {
 	timeShift := SeqBits + NodeBits
 	µs := (int64(id) >> timeShift) + Epoch
 	return time.UnixMicro(µs)
 }
 
+// Node extracts the node ID component from the ID.
 func (id ID) Node() int64 {
 	nodeMax := int64((1 << NodeBits) - 1)
 	return (int64(id) >> SeqBits) & nodeMax
 }
 
+// Seq extracts the sequence number component from the ID.
 func (id ID) Seq() int64 {
 	seqMask := int64((1 << SeqBits) - 1)
 	return int64(id) & seqMask
@@ -374,6 +402,8 @@ func Must(id ID, err error) ID {
 	return id
 }
 
+// Generator produces unique IDs for a specific node.
+// Create with NewGenerator and call Generate to produce IDs.
 type Generator struct {
 	node      int64
 	state     atomic.Uint64
