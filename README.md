@@ -180,6 +180,30 @@ var user User
 db.QueryRow("SELECT id, name FROM users WHERE id = $1", id).Scan(&user.ID, &user.Name)
 ```
 
+### Optional domain type
+
+For type safety in your schema, you can create a `usid` domain type:
+
+```go
+postgres.Migrate(ctx, db, postgres.Config{
+    Epoch:        usid.Epoch,
+    NodeBits:     usid.NodeBits,
+    SeqBits:      usid.SeqBits,
+    CreateDomain: true,
+})
+```
+
+Then use `usid` instead of `bigint`:
+
+```sql
+CREATE TABLE users (
+    id usid PRIMARY KEY DEFAULT usid(),
+    email text NOT NULL
+);
+```
+
+The domain is an alias for `bigint`, so all USID functions work with it. ORMs and code generators like sqlc may need configuration to map the custom type.
+
 ## Why not nanoid?
 
 nanoid generates random IDs with no coordination required. The tradeoffs:
