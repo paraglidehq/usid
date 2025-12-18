@@ -351,3 +351,65 @@ func TestEncodingRoundtrip(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateDomain(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	cfg := postgres.DefaultConfig()
+	cfg.CreateDomain = true
+
+	// Migration with CreateDomain should succeed
+	if err := postgres.Migrate(ctx, db, cfg); err != nil {
+		t.Fatalf("migration failed: %v", err)
+	}
+
+	// Verify domain exists by using it in a table
+	_, err := db.ExecContext(ctx, `
+		CREATE TABLE test_domain (
+			id usid PRIMARY KEY DEFAULT usid(),
+			name text
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to create table with usid domain: %v", err)
+	}
+
+	// Insert a row and verify it works
+	var id int64
+	err = db.QueryRowContext(ctx, "INSERT INTO test_domain (name) VALUES ('test') RETURNING id").Scan(&id)
+	if err != nil {
+		t.Fatalf("insert failed: %v", err)
+	}
+	if id <= 0 {
+		t.Errorf("expected positive id, got %d", id)
+	}
+
+	// Second migration should be idempotent
+	if err := postgres.Migrate(ctx, db, cfg); err != nil {
+		t.Fatalf("second migration failed: %v", err)
+	}
+}
+
+func TestCreateDomainDisabled(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Migration without CreateDomain (default)
+	if err := postgres.Migrate(ctx, db, postgres.DefaultConfig()); err != nil {
+		t.Fatalf("migration failed: %v", err)
+	}
+
+	// Domain should not exist
+	_, err := db.ExecContext(ctx, `
+		CREATE TABLE test_no_domain (
+			id usid PRIMARY KEY
+		)
+	`)
+	if err == nil {
+		t.Fatal("expected error when using usid domain (should not exist), got nil")
+	}
+}

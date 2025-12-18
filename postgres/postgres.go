@@ -24,6 +24,11 @@ type Config struct {
 	Epoch    int64 // Custom epoch in microseconds
 	NodeBits uint8 // Bits allocated for node ID
 	SeqBits  uint8 // Bits allocated for sequence number
+
+	// CreateDomain creates a `usid` domain type as an alias for bigint.
+	// This provides type safety in your schema but may require configuration
+	// in ORMs and code generators like sqlc.
+	CreateDomain bool
 }
 
 // DefaultConfig returns the default USID configuration.
@@ -138,7 +143,19 @@ func GenerateSQL(cfg Config) string {
 	nodeMask := cfg.NodeMask()
 	seqMask := cfg.SeqMask()
 
-	return fmt.Sprintf(`
+	var domainSQL string
+	if cfg.CreateDomain {
+		domainSQL = `
+-- Domain type
+DO $$ BEGIN
+  CREATE DOMAIN usid AS bigint;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+`
+	}
+
+	return domainSQL + fmt.Sprintf(`
 -- Sequences
 CREATE SEQUENCE IF NOT EXISTS usid_seq CYCLE MAXVALUE %d;
 CREATE SEQUENCE IF NOT EXISTS usid_node_seq CYCLE MINVALUE 1 MAXVALUE %d;
