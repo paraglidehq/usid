@@ -22,13 +22,13 @@ usid:    gb61dv03w20                            (<=13 chars, 8 bytes)
 ## Installation
 
 ```bash
-go get github.com/paraglidehq/usid
+go get github.com/paraglidehq/usid/v2
 ```
 
 ## Quick start
 
 ```go
-import "github.com/paraglidehq/usid"
+import "github.com/paraglidehq/usid/v2"
 
 func main() {
     usid.SetNodeID(1)  // Assign once at startup
@@ -164,7 +164,7 @@ CREATE TABLE users (
 Run migrations to install Postgres functions:
 
 ```go
-import "github.com/paraglidehq/usid/postgres"
+import "github.com/paraglidehq/usid/v2/postgres"
 
 postgres.Migrate(ctx, db, postgres.DefaultConfig())
 ```

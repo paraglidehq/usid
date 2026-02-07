@@ -27,8 +27,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/paraglidehq/usid/base58"
-	"github.com/paraglidehq/usid/crockford"
+	"github.com/paraglidehq/usid/v2/base58"
+	"github.com/paraglidehq/usid/v2/crockford"
 )
 
 // Compile-time interface checks for ID

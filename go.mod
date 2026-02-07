@@ -1,4 +1,4 @@
-module github.com/paraglidehq/usid
+module github.com/paraglidehq/usid/v2
 
 go 1.25.5
 
