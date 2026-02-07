@@ -193,7 +193,7 @@ func testNullIDMarshalJSONNil(t *testing.T) {
 	}
 
 	dataStr := string(data)
-	want := `"1"`
+	want := `"0"`
 	if dataStr != want {
 		t.Fatalf("(%#v).MarshalJSON value want: %s, got: %s", n, want, dataStr)
 	}

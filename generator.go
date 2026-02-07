@@ -16,7 +16,7 @@ var (
 	SeqBits uint8 = 6
 
 	// DefaultFormat is the default string encoding format for IDs.
-	DefaultFormat Format = FormatBase58
+	DefaultFormat Format = FormatCrockford
 )
 
 // DefaultGenerator is used by New(). Set via SetNodeID().

@@ -8,7 +8,7 @@
 //
 //	usid.SetNodeID(1)  // Call once at startup
 //	id := usid.New()   // Generate IDs
-//	fmt.Println(id)    // Base58 encoded by default
+//	fmt.Println(id)    // Crockford Base32 encoded by default
 //
 // The bit layout is configurable via Epoch, NodeBits, and SeqBits variables.
 package usid
@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/paraglidehq/usid/base58"
+	"github.com/paraglidehq/usid/crockford"
 )
 
 // Compile-time interface checks for ID
@@ -50,7 +51,8 @@ type Format string
 
 // Supported ID string formats.
 const (
-	FormatBase58  Format = "base58"  // URL-safe, compact (default)
+	FormatCrockford Format = "crockford" // Crockford Base32, case-insensitive (default)
+	FormatBase58  Format = "base58"  // URL-safe, compact
 	FormatBase64  Format = "base64"  // Standard base64 encoding
 	FormatHash    Format = "hash"    // Hexadecimal encoding
 	FormatDecimal Format = "decimal" // Decimal integer string
@@ -117,6 +119,8 @@ func (id ID) Format(f ...Format) string {
 	}
 	id = obfuscate(id)
 	switch format {
+	case FormatBase58:
+		return base58.Encode(int64(id))
 	case FormatDecimal:
 		return strconv.FormatInt(int64(id), 10)
 	case FormatBase64:
@@ -124,7 +128,7 @@ func (id ID) Format(f ...Format) string {
 	case FormatHash:
 		return strconv.FormatUint(uint64(id), 16)
 	default:
-		return base58.Encode(int64(id))
+		return crockford.Encode(int64(id))
 	}
 }
 
@@ -220,6 +224,8 @@ func (id *ID) Scan(src interface{}) error {
 // Parse parses a string into an ID using DefaultFormat.
 func Parse(s string) (ID, error) {
 	switch DefaultFormat {
+	case FormatBase58:
+		return ParseBase58(s)
 	case FormatDecimal:
 		return ParseDecimal(s)
 	case FormatBase64:
@@ -227,8 +233,20 @@ func Parse(s string) (ID, error) {
 	case FormatHash:
 		return ParseHash(s)
 	default:
-		return ParseBase58(s)
+		return ParseCrockford(s)
 	}
+}
+
+// ParseCrockford parses a Crockford Base32-encoded string into an ID.
+func ParseCrockford(s string) (ID, error) {
+	if len(s) == 0 {
+		return Nil, errors.New("usid: empty string")
+	}
+	n, err := crockford.Decode(s)
+	if err != nil {
+		return Nil, err
+	}
+	return deobfuscate(ID(n)), nil
 }
 
 // ParseBase58 parses a base58-encoded string into an ID.

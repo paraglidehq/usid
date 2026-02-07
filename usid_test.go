@@ -60,7 +60,7 @@ func testIDString(t *testing.T) {
 func testIDFormats(t *testing.T) {
 	id := New()
 
-	formats := []Format{FormatBase58, FormatDecimal, FormatHash, FormatBase64}
+	formats := []Format{FormatCrockford, FormatBase58, FormatDecimal, FormatHash, FormatBase64}
 	for _, f := range formats {
 		s := id.Format(f)
 		if s == "" {

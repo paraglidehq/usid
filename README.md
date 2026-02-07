@@ -3,8 +3,8 @@
 Time-ordered 64-bit IDs. Half the size of UUIDv7, fits in a `bigint`.
 
 ```
-UUIDv7:  019234a5-f78b-7c3d-8a1e-3f9b2c8d4e6f    (36 chars, 16 bytes)
-usid:    2r6zq5dd9                             (<=11 chars, 8 bytes)
+UUIDv7:  019234a5-f78b-7c3d-8a1e-3f9b2c8d4e6f  (36 chars, 16 bytes)
+usid:    gb61dv03w20                            (<=13 chars, 8 bytes)
 ```
 
 ## How it works
@@ -32,9 +32,9 @@ import "github.com/paraglidehq/usid"
 
 func main() {
     usid.SetNodeID(1)  // Assign once at startup
-    
+
     id := usid.New()
-    fmt.Println(id)              // "3kTMd92jFk"
+    fmt.Println(id)              // "gb61dv03w20"
     fmt.Println(id.Timestamp())  // 2025-12-16 12:34:56.789
 }
 ```
@@ -47,15 +47,16 @@ func main() {
 id := usid.New()
 
 // Parse
-id, err := usid.Parse("3kTMd92jFk")
-id := usid.FromStringOrNil("3kTMd92jFk")
+id, err := usid.Parse("gb61dv03w20")
+id := usid.FromStringOrNil("gb61dv03w20")
 
 // Format
-str := id.String()                    // uses DefaultFormat
-str := id.Format(usid.FormatBase58)   // "3kTMd92jFk"
-str := id.Format(usid.FormatDecimal)  // "10151254716672"
-str := id.Format(usid.FormatHash)     // "93b85ee7100"
-str := id.Format(usid.FormatBase64)   // "AAAJO4XucQA="
+str := id.String()                       // uses DefaultFormat (Crockford Base32)
+str := id.Format(usid.FormatCrockford)   // "gb61dv03w20"
+str := id.Format(usid.FormatBase58)      // "3kTMd92jFk"
+str := id.Format(usid.FormatDecimal)     // "10151254716672"
+str := id.Format(usid.FormatHash)        // "93b85ee7100"
+str := id.Format(usid.FormatBase64)      // "AAAJO4XucQA="
 
 // Extract components
 ts := id.Timestamp()  // time.Time
@@ -67,6 +68,8 @@ n := id.Int64()
 bytes := id.Bytes()
 ```
 
+The default format is [Crockford Base32](https://www.crockford.com/base32.html): lowercase, case-insensitive on decode, and treats `I`/`L` as `1` and `O` as `0` for human-friendliness.
+
 ## JSON
 
 ```go
@@ -74,13 +77,13 @@ type User struct {
     ID   usid.ID `json:"id"`
     Name string  `json:"name"`
 }
-// {"id":"3kTMd92jFk","name":"alice"}
+// {"id":"gb61dv03w20","name":"alice"}
 
 type Record struct {
     ID       usid.ID     `json:"id"`
     ParentID usid.NullID `json:"parent_id"`
 }
-// {"id":"3kTMd92jFk","parent_id":null}
+// {"id":"gb61dv03w20","parent_id":null}
 ```
 
 ## Customizing bit allocation
@@ -169,7 +172,8 @@ postgres.Migrate(ctx, db, postgres.DefaultConfig())
 This gives you:
 
 - `usid()` — generate IDs in Postgres (uses node 0)
-- `usid_to_b58(id)` / `b58_to_usid(str)` — encoding
+- `usid_to_crockford(id)` / `crockford_to_usid(str)` — Crockford Base32 encoding
+- `usid_to_b58(id)` / `b58_to_usid(str)` — Base58 encoding
 - `ts_from_usid(id)` — extract timestamp
 - `usid_next_node()` — get next node ID from sequence
 
@@ -240,11 +244,13 @@ usid generates in-process: no network hop, no single point of failure, no batchi
 
 ## Benchmarks
 
+Apple M2:
+
 | Operation | ns/op | allocs |
 |-----------|------:|:------:|
-| New | 36.6 | 0 |
-| Parse | 7.7 | 0 |
-| String | 25.7 | 1 |
+| New | 38.1 | 0 |
+| Parse | 7.9 | 0 |
+| String | 21.3 | 1 |
 
 ### Postgres (10M rows, after 10M random updates)
 

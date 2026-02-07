@@ -37,7 +37,7 @@ func TestObfuscation(t *testing.T) {
 	DefaultObfuscator = NewObfuscator(key)
 
 	// Test all formats roundtrip
-	formats := []Format{FormatBase58, FormatDecimal, FormatHash, FormatBase64}
+	formats := []Format{FormatCrockford, FormatBase58, FormatDecimal, FormatHash, FormatBase64}
 	for _, f := range formats {
 		DefaultFormat = f
 		s := id.Format(f)
@@ -49,7 +49,7 @@ func TestObfuscation(t *testing.T) {
 			t.Errorf("roundtrip failed for format %s: got %d, want %d", f, parsed, id)
 		}
 	}
-	DefaultFormat = FormatBase58 // restore
+	DefaultFormat = FormatCrockford // restore
 }
 
 func TestObfuscationJSON(t *testing.T) {

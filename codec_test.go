@@ -53,14 +53,25 @@ func TestFromBytesOrNil(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
-	// Parse uses DefaultFormat (base58 by default)
-	s := codecTestID.Format(FormatBase58)
+	// Parse uses DefaultFormat (crockford by default)
+	s := codecTestID.Format(FormatCrockford)
 	got, err := Parse(s)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got != codecTestID {
 		t.Errorf("Parse(%q): got %v, want %v", s, got, codecTestID)
+	}
+}
+
+func TestParseCrockford(t *testing.T) {
+	s := codecTestID.Format(FormatCrockford)
+	got, err := ParseCrockford(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != codecTestID {
+		t.Errorf("ParseCrockford(%q): got %v, want %v", s, got, codecTestID)
 	}
 }
 
@@ -113,6 +124,7 @@ func TestParseEmpty(t *testing.T) {
 		name string
 		fn   func(string) (ID, error)
 	}{
+		{"ParseCrockford", ParseCrockford},
 		{"ParseBase58", ParseBase58},
 		{"ParseBase64", ParseBase64},
 		{"ParseHash", ParseHash},
@@ -136,7 +148,7 @@ func TestFromStringOrNil(t *testing.T) {
 		}
 	})
 	t.Run("Valid", func(t *testing.T) {
-		s := codecTestID.Format(FormatBase58)
+		s := codecTestID.Format(FormatCrockford)
 		got := FromStringOrNil(s)
 		if got != codecTestID {
 			t.Errorf("FromStringOrNil(%q): got %v, want %v", s, got, codecTestID)
@@ -154,7 +166,7 @@ func TestFromInt64(t *testing.T) {
 func TestIDParseMethod(t *testing.T) {
 	t.Run("Valid", func(t *testing.T) {
 		var id ID
-		err := id.Parse(codecTestID.Format(FormatBase58))
+		err := id.Parse(codecTestID.Format(FormatCrockford))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -222,9 +234,9 @@ func TestMarshalText(t *testing.T) {
 }
 
 func TestUnmarshalText(t *testing.T) {
-	// UnmarshalText uses Parse which uses DefaultFormat (base58)
+	// UnmarshalText uses Parse which uses DefaultFormat (crockford)
 	var got ID
-	err := got.UnmarshalText([]byte(codecTestID.Format(FormatBase58)))
+	err := got.UnmarshalText([]byte(codecTestID.Format(FormatCrockford)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,6 +302,7 @@ func TestIDFormat(t *testing.T) {
 		name   string
 		parse  func(string) (ID, error)
 	}{
+		{FormatCrockford, "Crockford", ParseCrockford},
 		{FormatBase58, "Base58", ParseBase58},
 		{FormatDecimal, "Decimal", ParseDecimal},
 		{FormatHash, "Hash", ParseHash},
@@ -316,7 +329,7 @@ func TestIDFormat(t *testing.T) {
 
 func TestMust(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		got := Must(FromString(codecTestID.Format(FormatBase58)))
+		got := Must(FromString(codecTestID.Format(FormatCrockford)))
 		if got != codecTestID {
 			t.Errorf("Must: got %v, want %v", got, codecTestID)
 		}
@@ -332,6 +345,12 @@ func TestMust(t *testing.T) {
 }
 
 func BenchmarkFromString(b *testing.B) {
+	b.Run("Crockford", func(b *testing.B) {
+		s := codecTestID.Format(FormatCrockford)
+		for i := 0; i < b.N; i++ {
+			FromString(s)
+		}
+	})
 	b.Run("Decimal", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			FromString("1234567890123456789")
@@ -346,6 +365,11 @@ func BenchmarkFromString(b *testing.B) {
 }
 
 func BenchmarkFormat(b *testing.B) {
+	b.Run("Crockford", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			codecTestID.Format(FormatCrockford)
+		}
+	})
 	b.Run("Base58", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			codecTestID.Format(FormatBase58)

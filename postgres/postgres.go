@@ -217,6 +217,55 @@ CREATE OR REPLACE FUNCTION seq_from_usid(id bigint)
   SELECT (id & %d)::int;
 $$;
 
+-- Crockford Base32 encoding/decoding
+CREATE OR REPLACE FUNCTION crockford_to_usid(encoded_id text)
+  RETURNS bigint
+  LANGUAGE plpgsql
+  IMMUTABLE PARALLEL SAFE STRICT LEAKPROOF
+  AS $$
+DECLARE
+  alphabet text := '0123456789abcdefghjkmnpqrstvwxyz';
+  c char(1);
+  p int;
+  result bigint := 0;
+BEGIN
+  FOR i IN 1..char_length(encoded_id) LOOP
+    c := lower(substring(encoded_id FROM i FOR 1));
+    IF c = '-' THEN CONTINUE; END IF;
+    IF c = 'i' OR c = 'l' THEN c := '1'; END IF;
+    IF c = 'o' THEN c := '0'; END IF;
+    p := position(c IN alphabet);
+    IF p = 0 THEN
+      RAISE EXCEPTION 'Invalid crockford base32 character: %%', c;
+    END IF;
+    result := (result * 32) + (p - 1);
+  END LOOP;
+  RETURN result;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION usid_to_crockford(id bigint)
+  RETURNS text
+  LANGUAGE plpgsql
+  IMMUTABLE PARALLEL SAFE STRICT LEAKPROOF
+  AS $$
+DECLARE
+  alphabet text := '0123456789abcdefghjkmnpqrstvwxyz';
+  result text := '';
+  remainder int;
+BEGIN
+  IF id = 0 THEN
+    RETURN '0';
+  END IF;
+  WHILE id > 0 LOOP
+    remainder := (id & 31)::int;
+    result := substring(alphabet FROM remainder + 1 FOR 1) || result;
+    id := id >> 5;
+  END LOOP;
+  RETURN result;
+END;
+$$;
+
 -- Base58 encoding/decoding
 CREATE OR REPLACE FUNCTION b58_to_usid(encoded_id varchar(11))
   RETURNS bigint
