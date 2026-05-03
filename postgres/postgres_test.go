@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/beyondoss/usid/v2/postgres"
 	_ "github.com/lib/pq"
-	"github.com/paraglidehq/usid/v2/postgres"
 	"github.com/testcontainers/testcontainers-go"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"

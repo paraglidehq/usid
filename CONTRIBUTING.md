@@ -10,7 +10,7 @@
 3. Clone the repo and open in VSCode
 
 ```sh
-git clone https://github.com/paraglidehq/usid
+git clone https://github.com/beyondoss/usid
 code uuid
 ```
 
