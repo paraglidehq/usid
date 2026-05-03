@@ -27,8 +27,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/paraglidehq/usid/v2/base58"
-	"github.com/paraglidehq/usid/v2/crockford"
+	"github.com/beyondoss/usid/v2/base58"
+	"github.com/beyondoss/usid/v2/crockford"
 )
 
 // Compile-time interface checks for ID
@@ -52,10 +52,10 @@ type Format string
 // Supported ID string formats.
 const (
 	FormatCrockford Format = "crockford" // Crockford Base32, case-insensitive (default)
-	FormatBase58  Format = "base58"  // URL-safe, compact
-	FormatBase64  Format = "base64"  // Standard base64 encoding
-	FormatHash    Format = "hash"    // Hexadecimal encoding
-	FormatDecimal Format = "decimal" // Decimal integer string
+	FormatBase58    Format = "base58"    // URL-safe, compact
+	FormatBase64    Format = "base64"    // Standard base64 encoding
+	FormatHash      Format = "hash"      // Hexadecimal encoding
+	FormatDecimal   Format = "decimal"   // Decimal integer string
 )
 
 // ID is a 64-bit microsecond-precision time-ordered identifier.
